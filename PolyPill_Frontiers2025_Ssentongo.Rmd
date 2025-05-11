@@ -1,0 +1,1002 @@
+---
+title: 'Optimal combination of polypills for prevention of major adverse cardiovascular events and mortality'
+author: "Paddy Ssentongo, MD, PhD"
+output:
+  html_document:
+    pdf_print: paged
+  pdf_document: default
+---
+
+
+
+```{r setup, include=FALSE,warning=FALSE,echo=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(tinytex.verbose = TRUE)
+```
+
+
+
+# LOAD REQUIRED PACKAGES AND FUNCTIONS -----------------------------------------
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+library(olsrr) # linear regression
+library(tidyverse) # general stuff
+library(hrbrthemes) # pretty plots
+library(ggplot2) # pretty plots
+library(plotly) # interactive plots
+library(gapminder) # interactive plots
+library(pastecs) # stat.desc
+library(metafor) # for meta-analysis: mixed-effects logistic and Poisson regression models
+library(meta) # meta-regression, GLMM, forest plots,(subgroup) meta-analyses.
+library(sp) # spatial data
+#library(rgdal) #  projection/transformation operations for shapefiles
+library(rnaturalearth)
+library(tmap) # cool maps
+library(ggpubr) # 'ggplot2' Based Publication Ready Plots
+library(ggpmisc) #Miscellaneous Extensions to 'ggplot2'
+library(spData)
+library(cowplot)# plot grid
+library(ggsci)
+library(RColorBrewer)
+library(ggrepel)
+library(readxl)
+library(ggrepel)
+library(ggpmisc)
+library(gridExtra)
+library(ggpubr)
+library(grid)
+```
+
+
+
+## read data -----------------------------------------
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+rm(list=ls())
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+
+```
+
+# Demographic
+```{r}
+summary(dat$Mean_or_Median_age_all)# Age
+summary(dat$Male_.)# sex
+sum(dat$Sample_size_all,na.rm = T)#Sample size all
+sum(dat$Sample_size_polypill, na.rm = T)#Sample size Polypill
+sum(dat$Sample_Size_control, na.rm  =T) #Sample size Control
+
+summary(dat$Sample_size_all,na.rn=T)#Sample size all
+summary(dat$Sample_size_polypill) #Sample size olypill
+summary(dat$Sample_Size_control)#Sample size Control
+
+table(dat$Study_type)# Study type
+table(dat$Continent)# Continent
+table(dat$Primary.prevention)# Primary prevention
+summary(dat$Adherence_Last_follow_up_usual_care_.,na.rm  =T)#adherence pollypil
+summary(dat$Adherence_Last_follow_up_Polypill_.,na.rm  =T)#adherence usual care
+```
+
+
+## PART 1: Primary CVD Outcome (MACE)
+
+# read data -----------------------------------------
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+rm(list=ls())
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+dat<-  dat[!is.na(dat$Relative_Risk_Primary_CVD_outcome), ]
+
+dat$Relative_Risk_Primary_CVD_outcome
+
+```
+
+
+## Meta-analysis using Maximum likehood Adjusted-----------------------------------------
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+dat$TE=log(dat$Relative_Risk_Primary_CVD_outcome)
+#dat$seTE=(log(dat$RR_U-log(dat$RR_L))/(3.92))
+
+dat$lower <- log(dat$Primary_CVD_outcome_LCI)
+dat$upper <- log(dat$Primary_CVD_outcome_UCI)
+dat$seTE <- (dat$upper - dat$lower)/3.92
+
+m <- metagen(TE,
+             seTE,
+             data=dat,
+             #studlab=paste(Study,Age,Male, Country,sep = ","),
+             studlab=paste(Author, Year.of.publication, Continent, sep = ", "),
+             #studlab=paste(Author),
+             comb.fixed = F,
+             comb.random = T,
+             hakn = F,
+             prediction=F,
+             sm="RR")
+
+m
+```
+
+
+
+# Funnel plots : Risk ratio -----------------------------------------
+```{r}
+pdf("figs/Suppl_4.pdf", width = 10, height = 8)
+funnel(m,level = 0.9, comb.random = T,backtransf = T)
+dev.off()
+
+```
+
+
+
+
+```{r, eval=F}
+
+tf2 <- trimfill(m)
+summary(tf2)
+pdf("figs/Trim.pdf", width = 10, height = 8)
+funnel(tf2, pch = ifelse(tf2$trimfill, 1, 16),
+       level = 0.9, comb.random = T,backtransf = T)
+dev.off()
+```
+
+
+
+
+# Eggers and Begg test
+```{r}
+metabias(m, method="linreg",k.min=8)
+metabias(m, method="rank",k.min=8)
+
+```
+
+
+
+
+```{r}
+inf1=metainf(m, pooled = "random")
+summary(inf1)
+```
+
+
+
+```{r,fig.height=3, fig.width=4, echo=FALSE,warning=FALSE}
+pdf("figs/suppl_5.pdf", width = 10, height = 7)
+forest(inf1,sortvar = TE,test.overall = FALSE, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm",print.byvar = F,
+       squaresize=0.5, col.square="blue",
+       col.diamond="red", col.diamond.lines="red",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F,  print.pval.Q = T,
+        xlab="Risk ratio for the association of polypill and MACE outcomes",
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+dev.off()
+
+```
+
+
+
+
+## Plot figure 2A: Overall------------------------------------------------------------------------------------
+```{r, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+
+
+#pdf("figs/Fig1.pdf", width = 10, height = 4)
+forest(m,sortvar = TE,test.overall = T, overall= T, overall.hetstat = T,
+       colgap.forest.left = "0.38 cm",print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+
+a <- grid.grab()
+#dev.off()
+
+```
+
+
+
+
+
+## Plot 2B: Compare primary and secondary CVD outcome
+
+
+```{r, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+m2<- update(m, byvar=Primary.prevention,print.byvar=F)
+
+#pdf("figs/Diuretic.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = F, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+b<- grid.grab()
+
+m2
+
+```
+
+
+
+# Figure 2
+```{r}
+tiff("figs/Fig2.TIF", width=10000, height=4000, res=600, compression = "lzw")
+pdf("figs/Fig2.pdf", width = 20, height = 5)
+#grid.newpage()
+#grid.arrange(a,b,  ncol=2, nrow =1)
+ggarrange(a,b,  labels = c("A", "B"),   ncol=2, nrow =1)
+dev.off()
+```
+
+
+
+
+
+
+
+## Type of polypill: Contains an Aspirin
+```{r, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+m2<- update(m, byvar=Aspirin,print.byvar=F)
+
+
+
+
+#pdf("figs/Aspirin.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+c<- grid.grab()
+
+m2
+
+```
+
+
+
+## Type of polypill: Contains a Diuretic
+```{r, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+m2<- update(m, byvar=Diuretic,print.byvar=F)
+
+#pdf("figs/Diuretic.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+d<- grid.grab()
+
+m2
+
+```
+
+
+
+
+
+
+
+
+## Type of polypill: High intensity Statins
+```{r,echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+m2<- update(m, byvar=Moderate_High_Intensity,print.byvar=F)
+
+#pdf("figs/Diuretic.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+e<- grid.grab()
+
+m2
+
+```
+
+
+
+## Type of polypill: Four or more pills in combo
+```{r,echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+m2<- update(m, byvar=dat$X4.or.more.combination,print.byvar=F)
+
+#pdf("figs/ThreeMeds_and_mORE.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+f<- grid.grab()
+#dev.off()
+```
+
+
+
+
+
+
+# Figure 3
+```{r}
+pdf("figs/Fig3.pdf", width = 20, height = 10)
+tiff("figs/Fig3.TIF", width=10000, height=8000, res=600, compression = "lzw")
+ggarrange(c,d,e,f,  labels = c("A", "B","C","D"),   ncol=2, nrow =2)
+dev.off()
+```
+
+
+
+## Plot supplement 1: RCR and NRS
+
+
+```{r, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+m2<- update(m, byvar=dat$Study_type2,print.byvar=F)
+
+pdf("figs/suppl1.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+dev.off()
+
+m2
+
+```
+
+
+
+## Plot supplement: RAAS
+
+
+```{r, echo=FALSE,warning=FALSE, eval=F,message=FALSE}
+m2<- update(m, byvar=dat$RAAS2,print.byvar=F)
+
+pdf("figs/Suppl22.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+dev.off()
+
+m2
+
+```
+
+
+
+## Continent
+```{r,fig.height=8, fig.width=10, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+m2<- update(m, byvar=Continent,print.byvar=F)
+
+pdf("figs/Suppl2.pdf", width = 8, height = 8)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+dev.off()
+
+m2
+
+```
+
+
+
+```{r, fig.height=10, fig.width=15, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+
+library(tidyverse) 
+library(meta)
+
+year <- metareg(m, ~Year.of.publication)
+
+
+
+round(exp(coef(summary(year))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+age <- metareg(m, ~Mean_or_Median_age_all)
+
+age
+
+round(exp(coef(summary(age))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+
+sex<- metareg(m, ~Male_.)
+
+round(exp(coef(summary(sex))[-1,c("estimate", "ci.lb", "ci.ub")]), 2)
+
+
+meta::bubble(year, studlab = TRUE)
+
+
+```
+
+
+
+
+
+
+
+#PART TWO: Polypill and CVD Mortality---------------------------------------------------
+
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+rm(list=ls())
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+dat<-  dat[!is.na(dat$CVD_death_RR), ]
+
+```
+
+
+## Meta-analysis using Maximum likehood Adjusted-----------------------------------------
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+dat$TE=log(dat$CVD_death_RR)
+#dat$seTE=(log(dat$RR_U-log(dat$RR_L))/(3.92))
+
+dat$lower <- log(dat$CVD_death_LCI)
+dat$upper <- log(dat$CVD_death_UCI)
+dat$seTE <- (dat$upper - dat$lower)/3.92
+
+m <- metagen(TE,
+             seTE,
+             data=dat,
+             #studlab=paste(Study,Age,Male, Country,sep = ","),
+             #studlab=paste(Author, Year.of.publication, Continent, sep = ", "),
+             studlab=paste(Author),
+             comb.fixed = F,
+             comb.random = T,
+             hakn = F,
+             prediction=F,
+             sm="RR")
+
+m
+```
+
+
+## Plot figure 4: Overall CVD mortality
+```{r, fig.height=10, fig.width=15, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+
+tiff("figs/Fig4.TIF", width=8000, height=2000, res=600, compression = "lzw")
+#pdf("figs/Fig4.pdf", width = 10, height = 4)
+forest(m,sortvar = TE,test.overall = T, overall= T, overall.hetstat = T,
+       colgap.forest.left = "0.38 cm",print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Author"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+dev.off()
+
+```
+
+
+## Type of polypill: Aspirin
+```{r,fig.height=5, fig.width=10, echo=FALSE,warning=FALSE, message=FALSE}
+m2<- update(m, byvar=Aspirin,print.byvar=T)
+
+#pdf("figs/Aspirin.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+m2
+
+```
+
+
+
+## Type of polypill: Diuretic
+```{r,fig.height=5, fig.width=10, echo=FALSE,warning=FALSE, message=FALSE}
+m2<- update(m, byvar=Diuretic,print.byvar=T)
+
+#pdf("figs/Diuretic.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+m2
+
+```
+
+
+## Type of polypill: Four or more pills
+```{r,fig.height=8, fig.width=10, echo=FALSE,warning=FALSE,message=FALSE}
+m2<- update(m, byvar=X4.or.more.combination,print.byvar=T)
+
+#pdf("figs/ThreeMeds_and_mORE.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+#m2
+
+```
+
+
+
+
+## Type of polypill: Three or more pills
+```{r,fig.height=8, fig.width=10, echo=FALSE,warning=FALSE,message=FALSE}
+m2<- update(m, byvar=X3.or.more.combination,print.byvar=T)
+
+#pdf("figs/ThreeMeds_and_mORE.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+#m2
+
+```
+
+
+
+
+
+
+
+## PART THREE: POLYPILL AND All-cause MORTALITY ----------------------------------------------------------------
+
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+rm(list=ls())
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+dat<-  dat[!is.na(dat$Relative_risk_mortality), ]
+
+```
+
+
+## Meta-analysis using Maximum likehood Adjusted----------------------------------------------------------------------------------
+```{r,fig.height=5, fig.width=10, echo=FALSE,warning=FALSE, eval=T,message=FALSE}
+dat<-  dat[!is.na(dat$Relative_risk_mortality), ]
+
+dat$TE=log(dat$Relative_risk_mortality)
+#dat$seTE=(log(dat$RR_U-log(dat$RR_L))/(3.92))
+
+dat$lower <- log(dat$Mortality_LCI)
+dat$upper <- log(dat$Mortality_UCI)
+dat$seTE <- (dat$upper - dat$lower)/3.92
+
+m <- metagen(TE,
+             seTE,
+             data=dat,
+             #studlab=paste(Study,Age,Male, Country,sep = ","),
+             #studlab=paste(Author, Year.of.publication, Continent, sep = ", "),
+             studlab=paste(Author),
+             comb.fixed = F,
+             comb.random = T,
+             hakn = F,
+             prediction=F,
+             sm="RR")
+
+m
+```
+
+
+## Plot figure 5: Overall-mortality
+```{r, echo=FALSE,warning=FALSE,message=FALSE}
+
+tiff("figs/Fig5.TIF", width=8000, height=4000, res=600, compression = "lzw")
+#pdf("figs/Fig5.pdf", width = 10, height = 4)
+forest(m,sortvar = TE,test.overall = T, overall= T, overall.hetstat = T,
+       colgap.forest.left = "0.38 cm",print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+dev.off()
+
+```
+
+
+## Type of polypill: Contains an Aspirin
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+m2<- update(m, byvar=Aspirin,print.byvar=T)
+
+#pdf("figs/Aspirin.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+m2
+
+```
+
+
+
+## Type of polypill: Contains a Diuretic
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+m2<- update(m, byvar=Diuretic,print.byvar=T)
+
+#pdf("figs/Diuretic.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+
+
+```
+
+
+## Type of polypill: Four or more pills in a combo
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+m2<- update(m, byvar=dat$X4.or.more.combination,print.byvar=T)
+
+#pdf("figs/ThreeMeds_and_mORE.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+#m2
+
+```
+
+
+## Type of polypill: Three or more pills in a combo
+```{r, echo=FALSE,warning=FALSE, message=FALSE}
+m2<- update(m, byvar=dat$X3.or.more.combination,print.byvar=T)
+
+#pdf("figs/ThreeMeds_and_mORE.pdf", width = 8, height = 5)
+forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
+       colgap.forest.left = "0.38 cm", print.byvar = T,
+       squaresize=0.5, col.square="navy",
+       col.diamond="maroon", col.diamond.lines="maroon",
+       col.by="black",leftcols=("studlab"),leftlabs = c("Study, Pub Year, Country"),
+       rightlabs = c("RR","95% CI","Weight"), just = "center", just.addcols = "center",
+       print.zval = FALSE,text.fixed="Overall (Fixed-Effect Model)",text.random="Overall (Random-Effect Model)",comb.random = T,comb.fixed = F, print.pval.Q = T,test.subgroup.random =F,
+       digits.pval.Q=4,
+       print.tau2=F,
+       test.overall.fixed=FALSE,test.overall.random = F)
+#dev.off()
+
+#m2
+
+```
+
+
+
+#### BLOOD PRESSURE
+
+## Polypills and SBP reduction-------------------------------------
+
+```{r,fig.height=12, fig.width=10, echo=FALSE,warning=FALSE, message=FALSE}
+
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+l=reshape(dat, 
+          varying=c("X3.or.more.combination", "X4.or.more.combination2", "Diuretic2",  "Aspirin", "RAAS","BetaBlocker", "CCB"),
+          
+          v.names="PolyPill2",
+          
+          times=c("Three or less meds in a polypill","Four or more meds in a polypill","Contains a Diuretic", "Contains an Aspirin", "Contains a RAAS","Contains a beta-blocker","Contains a CCB"),  
+          
+          timevar="Outcome",
+          new.row.names = 1:1000,
+          direction="long")
+
+
+l1=is.na(l$Decrease_Blood_pressure_SBP)
+dat=l[!l1,]
+
+dat <- dat[ which(dat$PolyPill2 =='YES'),]
+
+#tiff("figs/SBP.tiff", width = 800, height = 600)
+
+
+h <- dat%>%
+  ggplot(aes(x = Outcome, y = Decrease_Blood_pressure_SBP)) +
+  #ggplot(aes(x = reorder(times, Rates2, FUN = median, .desc =TRUE, na.rm=T), y = Rates2))+ 
+  #geom_smooth(se = F, method = "lm", size = 1.5) +
+  geom_boxplot(outlier.shape = NA,outlier.size =0)+
+  geom_jitter(color="black", size=0.9, alpha=0.4, shape=5) +
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  coord_flip()+
+  #colorblindr::scale_fill_OkabeIto(name = "times") +
+  facet_wrap(~ "SBP reduction") +
+  labs(x = "", y = "SBP reduction (mm Hg)")  +
+  #guides(fill = guide_legend(override.aes = list(size = 3.5))) +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 13))
+
+h
+#dev.off()
+
+```
+
+
+
+## Polypills and DBP reduction-------------------------------------
+
+```{r,fig.height=12, fig.width=10, echo=FALSE,warning=FALSE, message=FALSE}
+
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+l=reshape(dat, 
+          varying=c("X3.or.more.combination", "X4.or.more.combination2", "Diuretic2",  "Aspirin", "RAAS","BetaBlocker", "CCB"),
+          
+          v.names="PolyPill2",
+          
+          times=c("Three or less meds in a polypill","Four or more meds in a polypill","Contains a Diuretic", "Contains an Aspirin", "Contains a RAAS","Contains a beta-blocker","Contains a CCB"),  
+          
+          timevar="Outcome",
+          new.row.names = 1:1000,
+          direction="long")
+
+
+l1=is.na(l$Decrease_Blood_pressure_DBP)
+dat=l[!l1,]
+
+dat <- dat[ which(dat$PolyPill2 =='YES'),]
+
+
+#tiff("figs/DBP.tiff", width = 800, height = 600)
+
+
+hh <- dat%>%
+  ggplot(aes(x = Outcome, y = Decrease_Blood_pressure_DBP)) +
+  #ggplot(aes(x = reorder(times, Rates2, FUN = median, .desc =TRUE, na.rm=T), y = Rates2))+ 
+  #geom_smooth(se = F, method = "lm", size = 1.5) +
+  geom_boxplot(outlier.shape = NA,outlier.size =0)+
+  geom_jitter(color="black", size=0.9, alpha=0.4, shape=5) +
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  coord_flip()+
+  #colorblindr::scale_fill_OkabeIto(name = "times") +
+  facet_wrap(~ "DBP Reduction") +
+  #facet_grid(~ PolyPill2)
+  labs(x = "", y = "DBP reduction (mm Hg)")  +
+  #guides(fill = guide_legend(override.aes = list(size = 3.5))) +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 13))
+
+hh
+
+#dev.off()
+
+```
+
+
+
+## Polypills and LDL reduction-------------------------------------
+
+```{r,fig.height=6, fig.width=10, echo=FALSE,warning=FALSE,message=FALSE}
+
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+l=reshape(dat, 
+          varying=c("Moderate_High_Intensity2","X3.or.more.combination", "X4.or.more.combination2",  "Aspirin"),
+          
+          v.names="PolyPill2",
+          
+          times=c("Moderate or high intensity statin",  "Three or less meds in a polypill","Four or more meds in a polypill","Contains an Aspirin"),  
+          
+          timevar="Outcome",
+          new.row.names = 1:1000,
+          direction="long")
+
+
+l1=is.na(l$Decrease_LDL)
+dat=l[!l1,]
+
+dat <- dat[ which(dat$PolyPill2 =='YES'),]
+
+#tiff("figs/LDL.tiff", width = 800, height = 600)
+
+hhh <- dat%>%
+  ggplot(aes(x = Outcome, y = Decrease_LDL)) +
+  #ggplot(aes(x = reorder(times, Rates2, FUN = median, .desc =TRUE, na.rm=T), y = Rates2))+ 
+  #geom_smooth(se = F, method = "lm", size = 1.5) +
+  geom_boxplot(outlier.shape = NA,outlier.size =0)+
+  geom_jitter(color="black", size=0.9, alpha=0.4, shape=5) +
+    scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +
+  coord_flip()+
+  #colorblindr::scale_fill_OkabeIto(name = "times") +
+  facet_wrap(~ "LDL reduction") +
+  #facet_grid(~ PolyPill2)
+  labs(x = "", y = "LDL Reduction (mg/dL)")  +
+  #guides(fill = guide_legend(override.aes = list(size = 3.5))) +
+  theme_bw(base_size = 14) +
+  theme(strip.text = element_text(face = "bold", size = 13))
+
+hhh
+
+#dev.off()
+
+```
+
+
+
+```{r}
+library(cowplot)
+ fig6<- ggarrange(h,hh,hhh,
+                    labels = c("A", "B","C"),
+                    ncol = 3, nrow = 1)
+fig6
+
+
+tiff("figs/Fig6.tiff", width=10000, height=6000, res=600, compression = "lzw")
+#pdf("figs/Fig6.pdf", width =30, height = 10)
+print(fig6, newpage = FALSE)
+dev.off()
+```
+
+
+
+
+## Correlation between adherence and CVD primary outcome (MACE)
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+a=ggscatter(dat, x = "Adherence_Last_follow_up_Polypill_.", y = "Relative_Risk_Primary_CVD_outcome", shape=22, color="red",
+          add = "reg.line", conf.int = F, 
+          cor.coef = TRUE, cor.method = "spearman",
+          add.params = list(color = "blue", 
+                            fill = "lightgray"),
+       xlab = "Adherence (%)", ylab = "MACE RR")
+a=a+xlim (70,100)
+```
+
+
+
+## Correlation between adherence and CVD death
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+b=ggscatter(dat, x = "Adherence_Last_follow_up_Polypill_.", y = "CVD_death_RR", shape=22, color="red",
+          add = "reg.line", conf.int = F, 
+          cor.coef = TRUE, cor.method = "spearman",
+          add.params = list(color = "blue", 
+                            fill = "lightgray"),
+       xlab = "Adherence (%)", ylab = "CVD Mortality RR")
+b=b+xlim (70,100)
+b
+
+```
+
+
+
+## Correlation between adherence and all-cause mortality
+```{r,warning=FALSE,echo=FALSE, message=FALSE}
+dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+
+c=ggscatter(dat, x = "Adherence_Last_follow_up_Polypill_.", y = "Relative_risk_mortality", shape=22, color="red",
+          add = "reg.line", conf.int = F, 
+          cor.coef = TRUE, cor.method = "spearman",
+          add.params = list(color = "blue", 
+                            fill = "lightgray"),
+       xlab = "Adherence (%)", ylab = "All-cause mortality RR")
+c=c+xlim (65,80)
+c
+
+```
+
+
+
+```{r}
+library(cowplot)
+ suppl4<- ggarrange(a,b,c,
+                    labels = c("A", "B","C"),
+                    ncol = 3, nrow = 1)
+suppl4
+
+
+#tiff("figs/Combined_Infection.tiff", width=4000, height=3000, res=300, compression = "lzw")
+pdf("figs/Suppl_3.pdf", width =20, height = 10)
+print(suppl4, newpage = FALSE)
+dev.off()
+```
+
+
