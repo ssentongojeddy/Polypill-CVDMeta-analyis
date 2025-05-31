@@ -13,37 +13,18 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 options(tinytex.verbose = TRUE)
 ```
-
+### Please credit the original author, Paddy Ssentongo, if you use this code in your work.
 
 
 # LOAD REQUIRED PACKAGES AND FUNCTIONS -----------------------------------------
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
-library(olsrr) # linear regression
-library(tidyverse) # general stuff
-library(hrbrthemes) # pretty plots
-library(ggplot2) # pretty plots
-library(plotly) # interactive plots
-library(gapminder) # interactive plots
-library(pastecs) # stat.desc
+library(ggplot2)
 library(metafor) # for meta-analysis: mixed-effects logistic and Poisson regression models
 library(meta) # meta-regression, GLMM, forest plots,(subgroup) meta-analyses.
-library(sp) # spatial data
-#library(rgdal) #  projection/transformation operations for shapefiles
-library(rnaturalearth)
-library(tmap) # cool maps
-library(ggpubr) # 'ggplot2' Based Publication Ready Plots
-library(ggpmisc) #Miscellaneous Extensions to 'ggplot2'
-library(spData)
-library(cowplot)# plot grid
+library(cowplot)
 library(ggsci)
 library(RColorBrewer)
-library(ggrepel)
-library(readxl)
-library(ggrepel)
-library(ggpmisc)
 library(gridExtra)
-library(ggpubr)
-library(grid)
 ```
 
 
@@ -51,9 +32,7 @@ library(grid)
 ## read data -----------------------------------------
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
 rm(list=ls())
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
-
-
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 ```
 
 # Demographic
@@ -71,9 +50,47 @@ summary(dat$Sample_Size_control)#Sample size Control
 table(dat$Study_type)# Study type
 table(dat$Continent)# Continent
 table(dat$Primary.prevention)# Primary prevention
-summary(dat$Adherence_Last_follow_up_usual_care_.,na.rm  =T)#adherence pollypil
-summary(dat$Adherence_Last_follow_up_Polypill_.,na.rm  =T)#adherence usual care
+summary(dat$Adherence_Last_follow_up_usual_care_.,na.rm  =T)#adherence Usual Care
+summary(dat$Adherence_Last_follow_up_Polypill_.,na.rm  =T)#adherence POLYPILL
+
+
+
 ```
+
+
+
+# SBP
+```{r}
+
+summary(dat$Decrease_Blood_pressure_SBP_Polypill,na.rm  =T)#SBP_Poly
+summary(dat$Decrease_Blood_pressure_SBP_SOC,na.rm  =T)#SBP_SOC
+summary(dat$Decrease_Blood_pressure_SBP_delta,na.rm  =T)#SBP_delta
+
+
+```
+
+
+# DBP
+```{r}
+summary(dat$Decrease_Blood_pressure_DBP_Polypill,na.rm  =T)#DBP_Poly
+summary(dat$Decrease_Blood_pressure_DBP_SOC,na.rm  =T)#DBP_SOC
+summary(dat$Decrease_Blood_pressure_DBP_delta,na.rm  =T)#DBP_DELTA
+
+ #Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+  #0.000   1.325   1.900   3.423   4.800  10.500       9 
+```
+
+
+# LDL
+```{r}
+
+summary(dat$Decrease_LDL_polypill,na.rm  =T)#LDL_Poly
+summary(dat$Decrease_LDL_polypill_SOC,na.rm  =T)#LDL_SOC
+summary(dat$Decrease_LDL_delta,na.rm  =T)#LDL_Delta
+
+
+```
+
 
 
 ## PART 1: Primary CVD Outcome (MACE)
@@ -81,7 +98,7 @@ summary(dat$Adherence_Last_follow_up_Polypill_.,na.rm  =T)#adherence usual care
 # read data -----------------------------------------
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
 rm(list=ls())
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 dat<-  dat[!is.na(dat$Relative_Risk_Primary_CVD_outcome), ]
 
@@ -93,8 +110,6 @@ dat$Relative_Risk_Primary_CVD_outcome
 ## Meta-analysis using Maximum likehood Adjusted-----------------------------------------
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
 dat$TE=log(dat$Relative_Risk_Primary_CVD_outcome)
-#dat$seTE=(log(dat$RR_U-log(dat$RR_L))/(3.92))
-
 dat$lower <- log(dat$Primary_CVD_outcome_LCI)
 dat$upper <- log(dat$Primary_CVD_outcome_UCI)
 dat$seTE <- (dat$upper - dat$lower)/3.92
@@ -102,9 +117,7 @@ dat$seTE <- (dat$upper - dat$lower)/3.92
 m <- metagen(TE,
              seTE,
              data=dat,
-             #studlab=paste(Study,Age,Male, Country,sep = ","),
              studlab=paste(Author, Year.of.publication, Continent, sep = ", "),
-             #studlab=paste(Author),
              comb.fixed = F,
              comb.random = T,
              hakn = F,
@@ -473,7 +486,7 @@ meta::bubble(year, studlab = TRUE)
 
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
 rm(list=ls())
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 dat<-  dat[!is.na(dat$CVD_death_RR), ]
 
@@ -625,7 +638,7 @@ forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
 
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
 rm(list=ls())
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 dat<-  dat[!is.na(dat$Relative_risk_mortality), ]
 
@@ -775,7 +788,8 @@ forest(m2,sortvar = TE,test.overall = T, overall= T, overall.hetstat = F,
 
 ```{r,fig.height=12, fig.width=10, echo=FALSE,warning=FALSE, message=FALSE}
 
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+#dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 l=reshape(dat, 
           varying=c("X3.or.more.combination", "X4.or.more.combination2", "Diuretic2",  "Aspirin", "RAAS","BetaBlocker", "CCB"),
@@ -789,7 +803,7 @@ l=reshape(dat,
           direction="long")
 
 
-l1=is.na(l$Decrease_Blood_pressure_SBP)
+l1=is.na(l$Decrease_Blood_pressure_SBP_Polypill)
 dat=l[!l1,]
 
 dat <- dat[ which(dat$PolyPill2 =='YES'),]
@@ -798,7 +812,7 @@ dat <- dat[ which(dat$PolyPill2 =='YES'),]
 
 
 h <- dat%>%
-  ggplot(aes(x = Outcome, y = Decrease_Blood_pressure_SBP)) +
+  ggplot(aes(x = Outcome, y = Decrease_Blood_pressure_SBP_Polypill)) +
   #ggplot(aes(x = reorder(times, Rates2, FUN = median, .desc =TRUE, na.rm=T), y = Rates2))+ 
   #geom_smooth(se = F, method = "lm", size = 1.5) +
   geom_boxplot(outlier.shape = NA,outlier.size =0)+
@@ -813,7 +827,46 @@ h <- dat%>%
   theme(strip.text = element_text(face = "bold", size = 13))
 
 h
+
 #dev.off()
+
+```
+
+
+
+
+```{r}
+# SBP---poly
+library(dplyr)
+
+group_by(dat, dat$Outcome) %>%
+  summarise(
+    count = n(),
+    median = median (Decrease_Blood_pressure_SBP_Polypill, na.rm = TRUE),
+    mean = mean(Decrease_Blood_pressure_SBP_Polypill, na.rm = TRUE),
+    sd = sd(Decrease_Blood_pressure_SBP_Polypill, na.rm = TRUE),
+    IQR = IQR(Decrease_Blood_pressure_SBP_Polypill, na.rm = TRUE)
+  )
+
+
+```
+
+
+
+
+```{r}
+# SBP---delta
+library(dplyr)
+
+group_by(dat, dat$Outcome) %>%
+  summarise(
+    count = n(),
+    median = median (Decrease_Blood_pressure_SBP_delta, na.rm = TRUE),
+    mean = mean(Decrease_Blood_pressure_SBP_delta, na.rm = TRUE),
+    sd = sd(Decrease_Blood_pressure_SBP_delta, na.rm = TRUE),
+    IQR = IQR(Decrease_Blood_pressure_SBP_delta, na.rm = TRUE)
+  )
+
 
 ```
 
@@ -823,7 +876,7 @@ h
 
 ```{r,fig.height=12, fig.width=10, echo=FALSE,warning=FALSE, message=FALSE}
 
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 l=reshape(dat, 
           varying=c("X3.or.more.combination", "X4.or.more.combination2", "Diuretic2",  "Aspirin", "RAAS","BetaBlocker", "CCB"),
@@ -837,7 +890,7 @@ l=reshape(dat,
           direction="long")
 
 
-l1=is.na(l$Decrease_Blood_pressure_DBP)
+l1=is.na(l$Decrease_Blood_pressure_DBP_Polypill)
 dat=l[!l1,]
 
 dat <- dat[ which(dat$PolyPill2 =='YES'),]
@@ -847,7 +900,7 @@ dat <- dat[ which(dat$PolyPill2 =='YES'),]
 
 
 hh <- dat%>%
-  ggplot(aes(x = Outcome, y = Decrease_Blood_pressure_DBP)) +
+  ggplot(aes(x = Outcome, y = Decrease_Blood_pressure_DBP_Polypill)) +
   #ggplot(aes(x = reorder(times, Rates2, FUN = median, .desc =TRUE, na.rm=T), y = Rates2))+ 
   #geom_smooth(se = F, method = "lm", size = 1.5) +
   geom_boxplot(outlier.shape = NA,outlier.size =0)+
@@ -855,7 +908,7 @@ hh <- dat%>%
     scale_x_discrete(labels = function(x) str_wrap(x, width = 20)) +
   coord_flip()+
   #colorblindr::scale_fill_OkabeIto(name = "times") +
-  facet_wrap(~ "DBP Reduction") +
+  facet_wrap(~ "DBP reduction") +
   #facet_grid(~ PolyPill2)
   labs(x = "", y = "DBP reduction (mm Hg)")  +
   #guides(fill = guide_legend(override.aes = list(size = 3.5))) +
@@ -870,11 +923,48 @@ hh
 
 
 
+
+
+```{r}
+# DBP---poly
+library(dplyr)
+
+group_by(dat, dat$Outcome) %>%
+  summarise(
+    count = n(),
+    median = median (Decrease_Blood_pressure_DBP_Polypill, na.rm = TRUE),
+    mean = mean(Decrease_Blood_pressure_DBP_Polypill, na.rm = TRUE),
+    sd = sd(Decrease_Blood_pressure_DBP_Polypill, na.rm = TRUE),
+    IQR = IQR(Decrease_Blood_pressure_DBP_Polypill, na.rm = TRUE)
+  )
+
+
+```
+
+
+
+
+```{r}
+# DBP---delta
+library(dplyr)
+
+group_by(dat, dat$Outcome) %>%
+  summarise(
+    count = n(),
+    median = median (Decrease_Blood_pressure_DBP_delta, na.rm = TRUE),
+    mean = mean(Decrease_Blood_pressure_DBP_delta, na.rm = TRUE),
+    sd = sd(Decrease_Blood_pressure_DBP_delta, na.rm = TRUE),
+    IQR = IQR(Decrease_Blood_pressure_DBP_delta, na.rm = TRUE)
+  )
+```
+
+
+
 ## Polypills and LDL reduction-------------------------------------
 
 ```{r,fig.height=6, fig.width=10, echo=FALSE,warning=FALSE,message=FALSE}
 
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 l=reshape(dat, 
           varying=c("Moderate_High_Intensity2","X3.or.more.combination", "X4.or.more.combination2",  "Aspirin"),
@@ -888,7 +978,7 @@ l=reshape(dat,
           direction="long")
 
 
-l1=is.na(l$Decrease_LDL)
+l1=is.na(l$Decrease_LDL_polypill)
 dat=l[!l1,]
 
 dat <- dat[ which(dat$PolyPill2 =='YES'),]
@@ -896,7 +986,7 @@ dat <- dat[ which(dat$PolyPill2 =='YES'),]
 #tiff("figs/LDL.tiff", width = 800, height = 600)
 
 hhh <- dat%>%
-  ggplot(aes(x = Outcome, y = Decrease_LDL)) +
+  ggplot(aes(x = Outcome, y = Decrease_LDL_polypill)) +
   #ggplot(aes(x = reorder(times, Rates2, FUN = median, .desc =TRUE, na.rm=T), y = Rates2))+ 
   #geom_smooth(se = F, method = "lm", size = 1.5) +
   geom_boxplot(outlier.shape = NA,outlier.size =0)+
@@ -920,6 +1010,22 @@ hhh
 
 
 ```{r}
+#LDL---poly
+library(dplyr)
+
+group_by(dat, dat$Outcome) %>%
+  summarise(
+    count = n(),
+    median = median (Decrease_LDL_polypill, na.rm = TRUE),
+    mean = mean(Decrease_LDL_polypill, na.rm = TRUE),
+    sd = sd(Decrease_LDL_polypill, na.rm = TRUE),
+    IQR = IQR(Decrease_LDL_polypill, na.rm = TRUE)
+  )
+```
+
+
+
+```{r}
 library(cowplot)
  fig6<- ggarrange(h,hh,hhh,
                     labels = c("A", "B","C"),
@@ -927,7 +1033,7 @@ library(cowplot)
 fig6
 
 
-tiff("figs/Fig6.tiff", width=10000, height=6000, res=600, compression = "lzw")
+tiff("figs/Fig6.tiff", width=15000, height=6000, res=600, compression = "lzw")
 #pdf("figs/Fig6.pdf", width =30, height = 10)
 print(fig6, newpage = FALSE)
 dev.off()
@@ -938,7 +1044,7 @@ dev.off()
 
 ## Correlation between adherence and CVD primary outcome (MACE)
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 a=ggscatter(dat, x = "Adherence_Last_follow_up_Polypill_.", y = "Relative_Risk_Primary_CVD_outcome", shape=22, color="red",
           add = "reg.line", conf.int = F, 
@@ -953,7 +1059,7 @@ a=a+xlim (70,100)
 
 ## Correlation between adherence and CVD death
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 b=ggscatter(dat, x = "Adherence_Last_follow_up_Polypill_.", y = "CVD_death_RR", shape=22, color="red",
           add = "reg.line", conf.int = F, 
@@ -970,7 +1076,7 @@ b
 
 ## Correlation between adherence and all-cause mortality
 ```{r,warning=FALSE,echo=FALSE, message=FALSE}
-dat=read.csv("data/Polypill_spreadsheet_2024.csv")
+dat=read.csv("data/Frontiers_2025_Polypill_Spreadsheet_2024.csv")
 
 c=ggscatter(dat, x = "Adherence_Last_follow_up_Polypill_.", y = "Relative_risk_mortality", shape=22, color="red",
           add = "reg.line", conf.int = F, 
@@ -978,7 +1084,7 @@ c=ggscatter(dat, x = "Adherence_Last_follow_up_Polypill_.", y = "Relative_risk_m
           add.params = list(color = "blue", 
                             fill = "lightgray"),
        xlab = "Adherence (%)", ylab = "All-cause mortality RR")
-c=c+xlim (65,80)
+c=c+xlim (65,100)
 c
 
 ```
